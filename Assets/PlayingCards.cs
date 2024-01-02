@@ -27,6 +27,6 @@ public class PlayingCards : MonoBehaviour
     public void OnActivated(EventArgs args)
     {
         EventHandler handler = Eventhandler;
-        handler?.Invoke(this, args);
+        handler?.Invoke(transform, args);
     }
 }
