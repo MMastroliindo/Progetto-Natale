@@ -10,7 +10,10 @@ using UnityEngine.UI;
 public class TextClickable : MonoBehaviour, IPointerClickHandler
 {
 
-    public GameObject Cards;
+    public GameObject Hand;
+    public GameObject HandCPU1;
+    public GameObject HandCPU2;
+    public GameObject HandCPU3;
 
     // Start is called before the first frame update
     void Start()
@@ -28,7 +31,10 @@ public class TextClickable : MonoBehaviour, IPointerClickHandler
     public void OnPointerClick(PointerEventData eventData)
     {
         // Perform an action when the Text object is clicked
-        Cards.SetActive(true);
+        Hand.SetActive(true);
+        HandCPU1.SetActive(true);
+        HandCPU2.SetActive(true);
+        HandCPU3.SetActive(true);
         Destroy(textComponent);
     }
 }
