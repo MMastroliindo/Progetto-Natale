@@ -390,6 +390,7 @@
 "Assets/BetLowest.cs"
 "Assets/BetPot.cs"
 "Assets/Deck.cs"
+"Assets/Fold.cs"
 "Assets/GameController.cs"
 "Assets/IDEventArgs.cs"
 "Assets/MoveCamera.cs"
