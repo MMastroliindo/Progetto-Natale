@@ -49,6 +49,8 @@ public class GameController : MonoBehaviour
     public GameObject Chip10;
     public GameObject Chip20;
     public GameObject Chip50;
+    public GameObject WinMessage;
+    public GameObject TableChips;
     bool playerPlaying = true;
     bool CPU1Playing = true;
     bool CPU2Playing = true;
@@ -249,6 +251,13 @@ public class GameController : MonoBehaviour
         ErrorMessage.SetActive(false);
     }
 
+    IEnumerator ShowWin()
+    {
+        WinMessage.SetActive(true);
+        yield return new WaitForSeconds(5);
+        WinMessage.SetActive(false);
+    }
+
     void RoundBegin(int bet)
     {
         OFold.SetActive(false);
@@ -257,9 +266,13 @@ public class GameController : MonoBehaviour
         Half.SetActive(false);
         Pot.SetActive(false);
 
-        SubmitBet(bet);
-        pot += bet;
-        try
+        if (playerPlaying)
+        {
+            SubmitBet(bet);
+            pot += bet;
+        }
+
+        if (CPU1Playing)
         {
             switch (CPUBet(CPU1Money, pot))
             {
@@ -279,21 +292,10 @@ public class GameController : MonoBehaviour
                     BetAllIn(HandCPU1, new IDEventArgs(1));
                     break;
             }
-            if (CPU1Bet > Money(CPU1Money))
-                throw new NotEnoughMoneyException("Not Enough Money");
+            SubmitBet(CPU1Bet);
+            pot += CPU1Bet;
         }
-        catch (NotEnoughMoneyException)
-        {
-            if (Money(CPU1Money) < minBet)
-            {
-                Fold(HandCPU1, new IDEventArgs(1));
-            }
-            else
-                BetLowest(HandCPU1, new IDEventArgs(1));
-        }
-        SubmitBet(CPU1Bet);
-        pot += CPU1Bet;
-        try
+        if (CPU2Playing)
         {
             switch (CPUBet(CPU2Money, pot))
             {
@@ -313,21 +315,10 @@ public class GameController : MonoBehaviour
                     BetAllIn(HandCPU2, new IDEventArgs(2));
                     break;
             }
-            if (CPU1Bet > Money(CPU1Money))
-                throw new NotEnoughMoneyException("Not Enough Money");
+            SubmitBet(CPU2Bet);
+            pot += CPU2Bet;
         }
-        catch (NotEnoughMoneyException)
-        {
-            if (Money(CPU2Money) < 25)
-            {
-                Fold(HandCPU2, new IDEventArgs(2));
-            }
-            else
-                BetLowest(HandCPU2, new IDEventArgs(2));
-        }
-        SubmitBet(CPU2Bet);
-        pot += CPU2Bet;
-        try
+        if (CPU3Playing)
         {
             switch (CPUBet(CPU3Money, pot))
             {
@@ -347,20 +338,11 @@ public class GameController : MonoBehaviour
                     BetAllIn(HandCPU3, new IDEventArgs(3));
                     break;
             }
-            if (CPU1Bet > Money(CPU1Money))
-                throw new NotEnoughMoneyException("Not Enough Money");
+            SubmitBet(CPU3Bet);
+            pot += CPU3Bet;
         }
-        catch (NotEnoughMoneyException)
-        {
-            if (Money(CPU3Money) < 25)
-            {
-                Fold(HandCPU3, new IDEventArgs(3));
-            }
-            else
-                BetLowest(HandCPU3, new IDEventArgs(3));
-        }
-        SubmitBet(CPU3Bet);
-        pot += CPU3Bet;
+
+        playerBet = 0; CPU1Bet = 0; CPU2Bet = 0; CPU3Bet = 0;
 
         if(!CPU1Playing) HandCPU1.SetActive(false);
         if(!CPU2Playing) HandCPU2.SetActive(false);
@@ -382,43 +364,427 @@ public class GameController : MonoBehaviour
         
         RevealCard(turn);
 
-        OFold.SetActive(true);
-        Lowest.SetActive(true);
-        AllIn.SetActive(true);
-        Half.SetActive(true);
-        Pot.SetActive(true);
+        if (turn == 4)
+        {
+            EndRound();
+            ResetTurn();
+            return;
+        }
+        if (playerPlaying)
+        {
+            OFold.SetActive(true);
+            Lowest.SetActive(true);
+            AllIn.SetActive(true);
+            Half.SetActive(true);
+            Pot.SetActive(true);
+        }
+        else
+        {
+            RoundBegin(0);
+        }
+    }
 
+    void EndRound()
+    {
+        List<int> playercards = new();
+        List<int> CPU1cards = new();
+        List<int> CPU2cards = new();
+        List<int> CPU3cards = new();
+        List<int> table = new();
+
+        playercards.Add(Convert(Hand.transform.GetChild(0).GetComponent<MeshRenderer>().material.name));
+        playercards.Add(Convert(Hand.transform.GetChild(1).GetComponent<MeshRenderer>().material.name));
+        CPU1cards.Add(Convert(HandCPU1.transform.GetChild(0).GetComponent<MeshRenderer>().material.name));
+        CPU1cards.Add(Convert(HandCPU1.transform.GetChild(1).GetComponent<MeshRenderer>().material.name));
+        CPU2cards.Add(Convert(HandCPU2.transform.GetChild(0).GetComponent<MeshRenderer>().material.name));
+        CPU2cards.Add(Convert(HandCPU2.transform.GetChild(1).GetComponent<MeshRenderer>().material.name));
+        CPU3cards.Add(Convert(HandCPU3.transform.GetChild(0).GetComponent<MeshRenderer>().material.name));
+        CPU3cards.Add(Convert(HandCPU3.transform.GetChild(1).GetComponent<MeshRenderer>().material.name));
+        table.Add(Convert(TableCards.transform.GetChild(0).GetComponent<MeshRenderer>().material.name));
+        table.Add(Convert(TableCards.transform.GetChild(1).GetComponent<MeshRenderer>().material.name));
+        table.Add(Convert(TableCards.transform.GetChild(2).GetComponent<MeshRenderer>().material.name));
+        table.Add(Convert(TableCards.transform.GetChild(3).GetComponent<MeshRenderer>().material.name));
+        table.Add(Convert(TableCards.transform.GetChild(4).GetComponent<MeshRenderer>().material.name));
+        int playerscore = Score(playercards, table);
+        int cpu1score = Score(CPU1cards, table);
+        int cpu2score = Score(CPU2cards, table);
+        int cpu3score = Score(CPU3cards, table);
+        int[] scores = new int[4] { playerscore, cpu1score, cpu2score, cpu3score };
+        Debug.Log(playerscore + "\n" + cpu1score + "\n" + cpu2score + "\n" + cpu3score);
+        DetermineWinner(scores);
 
     }
 
-    void ResetTurn()
+    void DetermineWinner(int[] scores)
     {
-        
+        Tuple<int, int>[] scoreIndices = Enumerable.Range(0, scores.Length).Select(i => new Tuple<int, int>(i, scores[i])).OrderByDescending(t => t.Item2).ToArray();
+
+        int winnerIndex = scoreIndices[0].Item1;
+        int winnerScore = scoreIndices[0].Item2;
+
+        int tieCount = 1;
+        for (int i = 1; i < scoreIndices.Length; i++)
+        {
+            if (scoreIndices[i].Item2 == winnerScore)
+            {
+                tieCount++;
+            }
+            else
+            {
+                break;
+            }
+        }
+        Win(winnerIndex);
+    }
+
+    void Repay(int[] chips, int amount)
+    {
+        while (amount >= 50)
+        {
+            amount -= 50;
+            chips[3]++;
+        }
+        while (amount >= 20)
+        {
+            amount -= 20;
+            chips[2]++;
+        }
+        while(amount >= 10)
+        {
+            amount -= 10;
+            chips[1]++;
+        }
+        while(amount >= 5)
+        {
+            amount -= 5;
+            chips[0]++;
+        }
+        for (int i = 0; i < TableChips.transform.childCount; i++)
+        {
+            Destroy(TableChips.transform.GetChild(i).gameObject);
+        }
+        Chips();
+    }
+
+    void Win(int index)
+    {
+        switch (index)
+        {
+            default:
+                break;
+            case 0:
+                WinMessage.GetComponent<TextMeshProUGUI>().text = "Hai vinto!";
+                StartCoroutine(ShowWin());
+                Repay(playerMoney, pot);
+                break;
+            case 1:
+                WinMessage.GetComponent<TextMeshProUGUI>().text = "CPU1 ha vinto!";
+                StartCoroutine(ShowWin());
+                Repay(CPU1Money, pot);
+                break;
+            case 2:
+                WinMessage.GetComponent<TextMeshProUGUI>().text = "CPU2 ha vinto!";
+                StartCoroutine(ShowWin());
+                Repay(CPU2Money, pot);
+                break;
+            case 3:
+                WinMessage.GetComponent<TextMeshProUGUI>().text = "CPU3 ha vinto!";
+                StartCoroutine(ShowWin());
+                Repay(CPU3Money, pot);
+                break;
+        }
+    }
+
+    int FindSeedNumber(List<int> list)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            int number = list[i];
+            int matchingNumbers = list.Count(n => n % 13 == number % 13);
+
+            if (matchingNumbers >= 5)
+            {
+                return number;
+            }
+        }
+
+        return -1;
+    }
+
+
+    int Score(List<int> hand, List<int> table) //1 = High card, 2 = pair, 3 = two pair, 4 = three of a kind, 5 = straight, 6 = flush, 7 = fullhouse, 8 = four of a kind, 9 = straight flush, 10 = royal flush
+    {
+        List<int> cards = new List<int>();
+        cards.AddRange(table);
+        cards.AddRange(hand);
+        List<int> clubs = new List<int>();
+        List<int> diamonds = new List<int>();
+        List<int> hearts = new List<int>();
+        List<int> spades = new List<int>();
+        int score;
+        List<int> nonHand = new List<int>();
+        List<int> handCards = new List<int>();
+        // Straight flush check
+        if (IsFlush(cards) && IsStraight(cards))
+        {
+            // Royal flush check
+            cards.Sort();
+            if (cards.Contains(10) && cards.Contains(1) && cards.Contains(11) && cards.Contains(12) && cards.Contains(13))
+            {
+                score = 10;
+                nonHand = cards.FindAll(c => c % 13 != 10 && c % 13 != 11 && c % 13 != 12 && c % 13 != 13 && c % 13 != 1);
+                foreach (var item in nonHand)
+                    cards.Remove(item);
+            }
+            for (int i = cards.FindLast(c => cards.Contains(c % 13) && cards.Contains(c%13 - 1) && cards.Contains(c % 13 - 2) && cards.Contains(c % 13 - 3) && cards.Contains(c % 13 - 4)); i > handCards[0]-4; i--)
+                handCards.Add(i);
+            nonHand = cards.FindAll(c => !handCards.Contains(c));
+            foreach (var item in nonHand) 
+                cards.Remove(item);
+            score = 9;
+        }
+
+        if (IsFlush(cards))
+        {
+            score = 6;
+        }
+        if (IsStraight(cards))
+        {
+            score = 5;
+        }
+
+        // Four of a kind check
+        var groups = GroupByValue(cards);
+        foreach (var group in groups)
+        {
+            if (group.Count() == 4)
+            {
+                score = 8;
+            }
+        }
+
+        // Full house check
+        groups = GroupByValue(cards);
+        if (groups.Any(g => g.Count() >= 2) && groups.Any(g => g.Count() == 3))
+        {
+            score = 7;
+        }
+
+        // Three of a kind check
+        groups = GroupByValue(cards);
+        foreach (var group in groups)
+        {
+            if (group.Count() == 3)
+            {
+                score = 4;
+            }
+        }
+
+        // Two pair check
+        groups = GroupByValue(cards);
+        if (groups.Count(g => g.Count() == 2) == 2)
+        {
+            score = 3;
+        }
+
+        // Pair check
+        groups = GroupByValue(cards);
+        if (groups.Any(g => g.Count() == 2))
+        {
+            score = 2;
+        }
+
+        // High card check
+        score = 1;
+        score--;
+
+        if (cards.Contains(1))
+        {
+            return 14 + 14 * score;
+        }
+        else
+        {
+            return cards.Max(n => n % 13) + 14 * score;
+        }
+    }
+
+    bool IsFlush(List<int> cards)
+    {
+        Dictionary<int, int> suitCounts = new Dictionary<int, int>();
+        foreach (var card in cards)
+        {
+            int suit = (card - 1) / 13;
+            if (!suitCounts.ContainsKey(suit))
+            {
+                suitCounts[suit] = 1;
+            }
+            else
+            {
+                suitCounts[suit]++;
+            }
+        }
+
+        foreach (var suitCount in suitCounts.Values)
+        {
+            if (suitCount >= 5)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsStraight(List<int> cards)
+    {
+        // Check if the cards form a straight
+        cards.Sort();
+        if (cards.Exists(c => cards.Contains(c) && cards.Contains(c % 13 + 1) && cards.Contains(c % 13 + 2) && cards.Contains(c % 13 + 3) && cards.Contains(c % 13 + 4)))
+            return true;
+        return false;
+    }
+
+    private IEnumerable<IGrouping<int, int>> GroupByValue(List<int> cards)
+    {
+        // Group cards by value
+        return cards.GroupBy(card => card%13);
+    }
+
+    int Convert(string material)
+    {
+        int score = 0;
+
+        if (material.Contains("01"))
+        {
+            score = 1;
+        }
+        if (material.Contains("02"))
+        {
+            score = 2;
+        }
+        if (material.Contains("03"))
+        {
+            score = 3;
+        }
+        if (material.Contains("04"))
+        {
+            score = 4;
+        }
+        if (material.Contains("05"))
+        {
+            score = 5;
+        }
+        if (material.Contains("06"))
+        {
+            score = 6;
+        }
+        if (material.Contains("07"))
+        {
+            score = 7;
+        }
+        if (material.Contains("08"))
+        {
+            score = 8;
+        }
+        if (material.Contains("09"))
+        {
+            score = 9;
+        }
+        if (material.Contains("10"))
+        {
+            score = 10;
+        }
+        if (material.Contains("11"))
+        {
+            score = 11;
+        }
+        if (material.Contains("12"))
+        {
+            score = 12;
+        }
+        if (material.Contains("13"))
+        {
+            score = 13;
+        }
+        if (material.Contains("Diamond"))
+        {
+            score += 13;
+        }
+        if (material.Contains("Heart"))
+        {
+            score += 13*2;
+        }
+        if (material.Contains("Spade"))
+        {
+            score += 13*3;
+        }
+        return score;
+    }
+
+
+    async void ResetTurn()
+    {
+        OFold.SetActive(false);
+        Lowest.SetActive(false);
+        AllIn.SetActive(false);
+        Half.SetActive(false);
+        Pot.SetActive(false);
+        await Task.Delay(2000);
+
+        System.Random rnd = new(Guid.NewGuid().GetHashCode());
+        List<Material> list;
+        list = new();
+        list.AddRange(Resources.LoadAll<Material>("BackColor_Red"));
+        turn = 0;
+
+
+
+        int index;
+        for (int j = 0; j < deck.Length; j++)
+        {
+            index = rnd.Next(0, 40 - j);
+            deck[j] = list[index];
+            list.RemoveAt(index);
+        }
+        deckMaterials = deck.ToList();
+        OnHandEnabled(gameObject, new EventArgs());
+        foreach (GameObject hand in hands)
+        {
+            hand.SetActive(true);
+        }
+        for (int i = 0; i < TableCards.transform.childCount; i++)
+        {
+            TableCards.transform.GetChild(i).transform.Rotate(0,0,180);
+        }
     }
 
     void SubmitBet(int bet)
     {
-        Debug.Log(bet);
         while (bet - 50 >= 0)
         {
             bet -= 50;
-            Instantiate(Chip50, new Vector3(-0.5f, 0, -1.92f), Quaternion.identity).transform.localScale = new Vector3(4, 4, 4);
+            Instantiate(Chip50, new Vector3(-0.5f, 0, -1.92f), Quaternion.identity, TableChips.transform).transform.localScale = new Vector3(4, 4, 4);
         }
         while (bet - 20 >= 0)
         {
             bet -= 20;
-            Instantiate(Chip20, new Vector3(0.5f, 0, -1.92f), Quaternion.identity).transform.localScale = new Vector3(4, 4, 4);
+            Instantiate(Chip20, new Vector3(0.5f, 0, -1.92f), Quaternion.identity, TableChips.transform).transform.localScale = new Vector3(4, 4, 4);
         }
         while (bet - 10 >= 0)
         {
             bet -= 10;
-            Instantiate(Chip10, new Vector3(1.5f, 0, -1.92f), Quaternion.identity).transform.localScale = new Vector3(4, 4, 4);
+            Instantiate(Chip10, new Vector3(1.5f, 0, -1.92f), Quaternion.identity, TableChips.transform).transform.localScale = new Vector3(4, 4, 4);
         }
         while (bet - 5 >= 0)
         {
             bet -= 5;
-            Instantiate(Chip5, new Vector3(2.5f, 0, -1.92f), Quaternion.identity).transform.localScale = new Vector3(4, 4, 4);
+            Instantiate(Chip5, new Vector3(2.5f, 0, -1.92f), Quaternion.identity, TableChips.transform).transform.localScale = new Vector3(4, 4, 4);
         }
+        if (bet != 0)
+        {
+            minBet = bet;
+        }
+        Lowest.GetComponent<TextMeshProUGUI>().text = "Bet " + minBet;
     }
 
     #region bet/fold
@@ -466,16 +832,34 @@ public class GameController : MonoBehaviour
                     break;
                 case 1:
                     bet = 5 * CPU1Money[0] + 10 * CPU1Money[1] + 20 * CPU1Money[2] + 50 * CPU1Money[3];
+                    bet = Control(bet, Money(CPU1Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU1Bet = bet;
                     Pay(bet, CPU1Money);
                     break;
                 case 2:
                     bet = 5 * CPU2Money[0] + 10 * CPU2Money[1] + 20 * CPU2Money[2] + 50 * CPU2Money[3];
+                    bet = Control(bet, Money(CPU2Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU2Bet = bet;
                     Pay(bet, CPU2Money);
                     break;
                 case 3:
                     bet = 5 * CPU3Money[0] + 10 * CPU3Money[1] + 20 * CPU3Money[2] + 50 * CPU3Money[3];
+                    bet = Control(bet, Money(CPU3Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU3Bet = bet;
                     Pay(bet, CPU3Money);
                     break;
@@ -493,6 +877,19 @@ public class GameController : MonoBehaviour
         if (e.ID == 0)
             RoundBegin(bet);
         Chips();
+    }
+
+    int Control(int bet, int money)
+    {
+        if (bet > money)
+        {
+            if (money < minBet)
+            {
+                return 0;
+            }
+            return minBet;
+        }
+        return bet;
     }
 
     private void BetPot(object sender, IDEventArgs e)
@@ -514,14 +911,32 @@ public class GameController : MonoBehaviour
                     Pay(bet, playerMoney);
                     break;
                 case 1:
+                    bet = Control(bet, Money(CPU1Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU1Bet = bet;
                     Pay(bet, CPU1Money);
                     break;
                 case 2:
+                    bet = Control(bet, Money(CPU2Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU2Bet = bet;
                     Pay(bet, CPU2Money);
                     break;
                 case 3:
+                    bet = Control(bet, Money(CPU3Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU3Bet = bet;
                     Pay(bet, CPU3Money);
                     break;
@@ -557,14 +972,32 @@ public class GameController : MonoBehaviour
                     Pay(bet, playerMoney);
                     break;
                 case 1:
+                    bet = Control(bet, Money(CPU1Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU1Bet = bet;
                     Pay(bet, CPU1Money);
                     break;
                 case 2:
+                    bet = Control(bet, Money(CPU2Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU2Bet = bet;
                     Pay(bet, CPU2Money);
                     break;
                 case 3:
+                    bet = Control(bet, Money(CPU3Money));
+                    if (bet == 0)
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     CPU3Bet = bet;
                     Pay(bet, CPU3Money);
                     break;
@@ -593,14 +1026,29 @@ public class GameController : MonoBehaviour
                     break;
                 case 1:
                     CPU1Bet = minBet;
+                    if (minBet > Money(CPU1Money))
+                    {
+                        Fold(sender, e);
+                        return;
+                    }
                     Pay(minBet, CPU1Money);
                     break;
                 case 2:
                     CPU2Bet = minBet;
+                    if (minBet > Money(CPU1Money))
+                        {
+                        Fold(sender, e);
+                        return;
+                    }
                     Pay(minBet, CPU2Money);
                     break;
                 case 3:
                     CPU3Bet = minBet;
+                    if (minBet > Money(CPU1Money))
+                        {
+                        Fold(sender, e);
+                        return;
+                    }
                     Pay(minBet, CPU3Money);
                     break;
             }
